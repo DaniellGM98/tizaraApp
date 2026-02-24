@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:calendar_date_picker2/calendar_date_picker2.dart';
 import 'package:custom_refresh_indicator/custom_refresh_indicator.dart';
@@ -8,8 +9,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_easyloading/flutter_easyloading.dart';
+import 'package:flutter_image_slideshow/flutter_image_slideshow.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:intl/intl.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tizara/config/navigation/route_observer.dart';
 import 'package:tizara/main.dart';
@@ -25,9 +29,9 @@ class SolicitudesScreen extends StatefulWidget {
   final String idapp;
 
   const SolicitudesScreen({
-    Key? key,
+    super.key,
     required this.idapp,
-  }) : super(key: key);
+  });
 
   @override
   State<SolicitudesScreen> createState() => _SolicitudesScreenState();
@@ -36,6 +40,7 @@ class SolicitudesScreen extends StatefulWidget {
 class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTickerProviderStateMixin {
   String? _tipoapp;
   String? _userapp;
+  String? _idApp;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -50,6 +55,7 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
     SharedPreferences prefs = await SharedPreferences.getInstance();
     _tipoapp = prefs.getString("usuario_tipo_id");
     _userapp = prefs.getString("nombre");
+    _idApp = prefs.getString("id");
     return false;
   }
 
@@ -524,13 +530,23 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
                 
                                       final item = filteredItems[index];
                                       return InkWell(
-                                        onTap: _tipoapp == "1"
-                                        ? item["status"] == "2"
-                                          ? () async{
-                                              await _onWillPop(item['data_id'], item['local'], item["status"]);
-                                            }
+                                        onTap: _idApp == "1" || _idApp == "2"
+                                        ? _tipoapp == "1"
+                                          //? item["status"] == "2"
+                                            ? () async{
+                                                await _onWillPop(item['data_id'], item['local'], item["status"]);
+                                              }
+                                            : null
+                                          //: null
+                                        : _tipoapp == "1"
+                                          ? item["status"] == "2"
+                                            ? 
+                                              () async{
+                                                await _onWillPop(item['data_id'], item['local'], item["status"]);
+                                              }
+                                            : null
                                           : null
-                                        : null,
+                                        ,
                                         child: Card(
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(20.0),
@@ -542,7 +558,12 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
                                               children: [
                                                 InkWell(
                                                   onTap: () async{
-                                                    await _descripcion(item['local'], item['descripcion']);
+                                                    List<String> imagenes = [];
+                                                    if (item['imagen'] != null) {
+                                                      // Si es List<dynamic>, convertir a List<String>
+                                                      imagenes = List<String>.from(item['imagen']);
+                                                    }
+                                                    await _descripcion(item['local'], item['descripcion'], imagenes);
                                                   },
                                                   child: CircleAvatar(
                                                     backgroundColor: 
@@ -632,9 +653,15 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
                                                           child: Icon(
                                                             Icons.arrow_forward_ios_outlined,
                                                             size: 24,
-                                                            color: item["status"] == "2"
-                                                                   ? Colors.orangeAccent
-                                                                   : Colors.grey,
+                                                            color:  _idApp == "1" || _idApp == "2"
+                                                            ? item['status'] == "2"
+                                                                ? Colors.orangeAccent
+                                                                : item['status'] == "1"
+                                                                  ? Colors.green
+                                                                  : Colors.red
+                                                            : item["status"] == "2"
+                                                                ? Colors.orangeAccent
+                                                                : Colors.grey,
                                                           ),
                                                         ),
                                                       ),
@@ -678,37 +705,67 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(32.0))),
             actions: <Widget>[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
+              Column(
                 children: [
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.redAccent, 
-                    ),
-                    onPressed: () async{
-                      SharedPreferences prefs = await SharedPreferences.getInstance();
-                      String? idapp = prefs.getString("id");
-                      // ignore: use_build_context_synchronously
-                      Navigator.of(context).pop(false);
-                      // ignore: use_build_context_synchronously
-                      await _motivo(context, idapp!, id);
-                    },
-                    child: const Text('Denegar'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      
+                      if(_idApp == "1" || _idApp == "2")
+                        if(status != "2" )
+                          FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.orangeAccent, 
+                            ),
+                            onPressed: () async{
+                              SharedPreferences prefs = await SharedPreferences.getInstance();
+                              String? idapp = prefs.getString("id");
+                              // ignore: use_build_context_synchronously
+                              Navigator.of(context).pop(false);
+                              // ignore: use_build_context_synchronously
+                              await showProgressPendiente(context, idapp!, id);
+                            },
+                            child: const Text('Pendiente'),
+                          )
+                    ],
                   ),
-                  SizedBox(height: size.height * 0.01),
-                  FilledButton(
-                    style: FilledButton.styleFrom(
-                      backgroundColor: Colors.orangeAccent, 
-                    ),
-                    onPressed: () async{
-                      SharedPreferences prefs = await SharedPreferences.getInstance();
-                      String? idapp = prefs.getString("id");
-                      // ignore: use_build_context_synchronously
-                      Navigator.of(context).pop(false);
-                      // ignore: use_build_context_synchronously
-                      await showProgressAutorizada(context, idapp!, id);
-                    },
-                    child: const Text('Autorizar'),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if(status != "0")
+                        FilledButton(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: Colors.redAccent, 
+                          ),
+                          onPressed: () async{
+                            SharedPreferences prefs = await SharedPreferences.getInstance();
+                            String? idapp = prefs.getString("id");
+                            // ignore: use_build_context_synchronously
+                            Navigator.of(context).pop(false);
+                            // ignore: use_build_context_synchronously
+                            await _motivo(context, idapp!, id);
+                          },
+                          child: const Text('Denegar'),
+                        ),
+
+                      SizedBox(height: size.height * 0.01, width: size.height * 0.01),
+
+                      if(status != "1")
+                        FilledButton(
+                            style: FilledButton.styleFrom(
+                              backgroundColor: Colors.green, 
+                            ),
+                            onPressed: () async{
+                              SharedPreferences prefs = await SharedPreferences.getInstance();
+                              String? idapp = prefs.getString("id");
+                              // ignore: use_build_context_synchronously
+                              Navigator.of(context).pop(false);
+                              // ignore: use_build_context_synchronously
+                              await showProgressAutorizada(context, idapp!, id);
+                            },
+                            child: const Text('Autorizar'),
+                          ),
+                    ],
                   ),
                 ],
               )
@@ -771,14 +828,97 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
         false;
   }
 
-  Future<bool> _descripcion(String locatario, String descripcion) async {
+  Future<bool> _descripcion(String locatario, String descripcion, List<String> imagenes) async {
     final Size size = MediaQuery.of(context).size;
     return (await showDialog(
           barrierDismissible: true,
           context: context,
           builder: (context) => AlertDialog(
             title: Text(locatario, textAlign: TextAlign.center),
-            content: SingleChildScrollView(child: HtmlWidget(descripcion, textStyle: const TextStyle(fontSize: 15))),
+            content: SingleChildScrollView(child: Column(
+              children: [
+                HtmlWidget(descripcion, textStyle: const TextStyle(fontSize: 15)),
+                SizedBox(height: size.height * 0.02),
+                // carrusel imagenes
+                Column(
+                  children: [
+                    Container(
+                      height: 0,
+                      color: Colors.transparent,
+                    ),
+                    Column(
+                      children: <Widget>[
+                        Container(
+                          height: 10,
+                        ),
+                        if (imagenes.isEmpty) const SizedBox(height: 0),
+                        if (imagenes.isNotEmpty)
+                          Container(
+                            color: Colors.black12,
+                            child: ImageSlideshow(
+                              width: double.infinity,
+                              height: size.height * 0.2,
+                              initialPage: 0,
+                              indicatorColor: Colors.blueAccent,
+                              indicatorBackgroundColor: Colors.white,
+                              onPageChanged: (value) {},
+                              autoPlayInterval: 0,
+                              isLoop: false,
+                              indicatorRadius: 5,
+                              indicatorPadding: 7,
+                              disableUserScrolling: false,
+                              indicatorBottomPadding: 10,
+                              children: [
+                                for (String image in imagenes)
+                                  Stack(
+                                    alignment: Alignment.topCenter,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          // Obtener el índice de la imagen actual
+                                          int currentIndex = imagenes.indexOf(image);
+                                          _openPhotoViewer(context, imagenes, currentIndex);
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(top: 0),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: size.height * 0.4,
+                                            child: Image.network(
+                                              image,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Image.asset(
+                                                  'assets/images/user.png',
+                                                  fit: BoxFit.contain,
+                                                );
+                                              },
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return Center(
+                                                  child: CircularProgressIndicator(
+                                                    value: loadingProgress.expectedTotalBytes != null
+                                                        ? loadingProgress.cumulativeBytesLoaded / 
+                                                          loadingProgress.expectedTotalBytes!
+                                                        : null,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            )),
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(32.0))),
             actions: <Widget>[
@@ -1112,12 +1252,13 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
     try {
       var data = {
         "usuario_id": idUsuario, 
+        "status": "1", 
       };
 
       final response = await http.post(Uri(
         scheme: https,
         host: host,
-        path: "/solicitud/app/cambioStatus/$solicitudId",
+        path: "/solicitud/app/cambioStatus2/$solicitudId",
       ), 
       body: data
       );
@@ -1164,13 +1305,14 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
     try {
       var data = {
         "usuario_id" : idUsuario, 
+        "status": "0", 
         "motivo" : motivo
       };
 
       final response = await http.post(Uri(
         scheme: https,
         host: host,
-        path: "/solicitud/app/cambioStatus/$solicitudId",
+        path: "/solicitud/app/cambioStatus2/$solicitudId",
       ), 
       body: data
       );
@@ -1205,6 +1347,150 @@ class _SolicitudesScreenState extends State<SolicitudesScreen> with SingleTicker
     EasyLoading.dismiss();
     // ignore: use_build_context_synchronously
     showResultDialog(context, result);
+  }
+
+  // Autorizacion
+  Future<String> _pendiente(idUsuario, solicitudId) async {
+    try {
+      var data = {
+        "usuario_id": idUsuario, 
+        "status": "2", 
+      };
+
+      final response = await http.post(Uri(
+        scheme: https,
+        host: host,
+        path: "/solicitud/app/cambioStatus2/$solicitudId",
+      ), 
+      body: data
+      );
+
+      log(response.statusCode.toString());
+      String body3 = utf8.decode(response.bodyBytes);
+      var jsonData = jsonDecode(body3);
+      log(jsonData['message']);
+
+      if (response.statusCode == 200) {
+        String body3 = utf8.decode(response.bodyBytes);
+        var jsonData = jsonDecode(body3);
+        if (jsonData['response'] == true) {
+          return 'Solicitud Pendiente exitosamente';
+        } else {
+          return 'Error, verificar conexión a Internet';
+        }
+      } else {
+        return 'Error, verificar conexión a Internet';
+      }
+    } catch (e) {
+      return 'Error, verificar conexión a Internet';
+    }
+  }
+
+  showProgressPendiente(BuildContext context, String idUsuario, String solicitudId) async {
+    EasyLoading.show(
+      status: 'Pendiente...',
+      dismissOnTap: false,
+      maskType: EasyLoadingMaskType.clear,
+    );
+
+    var result = await _pendiente(idUsuario, solicitudId);
+    // log(result);
+
+    EasyLoading.dismiss();
+    // ignore: use_build_context_synchronously
+    showResultDialog(context, result);
+  }
+
+  void _openPhotoViewer(BuildContext context, List<String> images, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              // PhotoView Gallery
+              PhotoViewGallery.builder(
+                itemCount: images.length,
+                builder: (context, index) {
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: NetworkImage(images[index]),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 2,
+                    heroAttributes: PhotoViewHeroAttributes(tag: images[index]),
+                  );
+                },
+                scrollPhysics: const BouncingScrollPhysics(),
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                pageController: PageController(initialPage: initialIndex),
+                onPageChanged: (index) {
+                  // Opcional: actualizar el índice actual
+                },
+                loadingBuilder: (context, event) {
+                  return Center(
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: CircularProgressIndicator(
+                        value: event == null
+                            ? 0
+                            : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              // Botón de cerrar
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Contador de imágenes
+              Positioned(
+                bottom: 30,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${initialIndex + 1} / ${images.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
 }

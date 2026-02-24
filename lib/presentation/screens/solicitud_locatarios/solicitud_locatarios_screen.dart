@@ -13,6 +13,8 @@ import 'package:flutter_image_slideshow/flutter_image_slideshow.dart';
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:html_editor_enhanced/html_editor.dart';
 import 'package:intl/intl.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:photo_view/photo_view_gallery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:tizara/config/navigation/route_observer.dart';
 import 'package:tizara/main.dart';
@@ -30,9 +32,9 @@ class SolicitudLocatariosScreen extends StatefulWidget {
   final String idapp;
 
   const SolicitudLocatariosScreen({
-    Key? key,
+    super.key,
     required this.idapp,
-  }) : super(key: key);
+  });
 
   @override
   State<SolicitudLocatariosScreen> createState() => _SolicitudLocatariosScreenState();
@@ -569,8 +571,13 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
                                       final item = filteredItems[index];
                                       return InkWell(
                                         onTap: () async{
-                                          await _descripcion(item['solicitante'], item['descripcion']);
-                                          // await _onWillPop(item['data_id'], item['solicitante'], item["status"]);
+                                          List<String> imagenes = [];
+                                          if (item['imagen'] != null) {
+                                            // Si es List<dynamic>, convertir a List<String>
+                                            imagenes = List<String>.from(item['imagen']);
+                                          }
+                                          await _descripcion(item['solicitante'], item['descripcion'], imagenes);
+                                          //await _descripcion(item['solicitante'], item['descripcion']);
                                         },
                                         child: Card(
                                           shape: RoundedRectangleBorder(
@@ -583,7 +590,13 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
                                               children: [
                                                 InkWell(
                                                   onTap: () async{
-                                                    await _descripcion(item['solicitante'], item['descripcion']);
+                                                    List<String> imagenes = [];
+                                                    if (item['imagen'] != null) {
+                                                      // Si es List<dynamic>, convertir a List<String>
+                                                      imagenes = List<String>.from(item['imagen']);
+                                                    }
+                                                    await _descripcion(item['solicitante'], item['descripcion'], imagenes);
+                                                    //await _descripcion(item['solicitante'], item['descripcion']);
                                                   },
                                                   child: CircleAvatar(
                                                     backgroundColor: Colors.grey,
@@ -611,9 +624,11 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
                                                           Text(
                                                             item['solicitante'],
                                                             style: const TextStyle(
-                                                              fontSize: 16,
+                                                              fontSize: 15,
                                                               fontWeight: FontWeight.bold,
                                                             ),
+                                                            overflow: TextOverflow.ellipsis, 
+                                                            maxLines: 1,
                                                           ),
                                                           Text(
                                                             "Fecha solicitud: ${item['fecha_solicitud']}",
@@ -1077,14 +1092,97 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
         false;
   }
 
-  Future<bool> _descripcion(String locatario, String descripcion) async {
+  Future<bool> _descripcion(String locatario, String descripcion, List<String> imagenes) async {
     final Size size = MediaQuery.of(context).size;
     return (await showDialog(
           barrierDismissible: true,
           context: context,
           builder: (context) => AlertDialog(
             title: Text(locatario, textAlign: TextAlign.center),
-            content: SingleChildScrollView(child: HtmlWidget(descripcion, textStyle: const TextStyle(fontSize: 15))),
+            content: SingleChildScrollView(child: Column(
+              children: [
+                HtmlWidget(descripcion, textStyle: const TextStyle(fontSize: 15)),
+                SizedBox(height: size.height * 0.02),
+                // carrusel imagenes
+                Column(
+                  children: [
+                    Container(
+                      height: 0,
+                      color: Colors.transparent,
+                    ),
+                    Column(
+                      children: <Widget>[
+                        Container(
+                          height: 10,
+                        ),
+                        if (imagenes.isEmpty) const SizedBox(height: 0),
+                        if (imagenes.isNotEmpty)
+                          Container(
+                            color: Colors.black12,
+                            child: ImageSlideshow(
+                              width: double.infinity,
+                              height: size.height * 0.2,
+                              initialPage: 0,
+                              indicatorColor: Colors.blueAccent,
+                              indicatorBackgroundColor: Colors.white,
+                              onPageChanged: (value) {},
+                              autoPlayInterval: 0,
+                              isLoop: false,
+                              indicatorRadius: 5,
+                              indicatorPadding: 7,
+                              disableUserScrolling: false,
+                              indicatorBottomPadding: 10,
+                              children: [
+                                for (String image in imagenes)
+                                  Stack(
+                                    alignment: Alignment.topCenter,
+                                    children: [
+                                      GestureDetector(
+                                        onTap: () {
+                                          // Obtener el índice de la imagen actual
+                                          int currentIndex = imagenes.indexOf(image);
+                                          _openPhotoViewer(context, imagenes, currentIndex);
+                                        },
+                                        child: Padding(
+                                          padding: const EdgeInsets.only(top: 0),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: size.height * 0.4,
+                                            child: Image.network(
+                                              image,
+                                              fit: BoxFit.contain,
+                                              errorBuilder: (context, error, stackTrace) {
+                                                return Image.asset(
+                                                  'assets/images/user.png',
+                                                  fit: BoxFit.contain,
+                                                );
+                                              },
+                                              loadingBuilder: (context, child, loadingProgress) {
+                                                if (loadingProgress == null) return child;
+                                                return Center(
+                                                  child: CircularProgressIndicator(
+                                                    value: loadingProgress.expectedTotalBytes != null
+                                                        ? loadingProgress.cumulativeBytesLoaded / 
+                                                          loadingProgress.expectedTotalBytes!
+                                                        : null,
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ],
+            )),
             shape: const RoundedRectangleBorder(
                 borderRadius: BorderRadius.all(Radius.circular(32.0))),
             actions: <Widget>[
@@ -1097,7 +1195,7 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
                       Navigator.of(context).pop(false);
                     },
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.grey, 
+                      backgroundColor: Colors.orangeAccent, 
                     ),
                     child: const Text('Cerrar'),
                   ),
@@ -1721,6 +1819,98 @@ class _SolicitudLocatariosScreenState extends State<SolicitudLocatariosScreen> w
     } catch (e) {
       return 'Error, verificar conexión a Internet';
     }
+  }
+
+  void _openPhotoViewer(BuildContext context, List<String> images, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => Scaffold(
+          backgroundColor: Colors.black,
+          body: Stack(
+            children: [
+              // PhotoView Gallery
+              PhotoViewGallery.builder(
+                itemCount: images.length,
+                builder: (context, index) {
+                  return PhotoViewGalleryPageOptions(
+                    imageProvider: NetworkImage(images[index]),
+                    minScale: PhotoViewComputedScale.contained,
+                    maxScale: PhotoViewComputedScale.covered * 2,
+                    heroAttributes: PhotoViewHeroAttributes(tag: images[index]),
+                  );
+                },
+                scrollPhysics: const BouncingScrollPhysics(),
+                backgroundDecoration: const BoxDecoration(color: Colors.black),
+                pageController: PageController(initialPage: initialIndex),
+                onPageChanged: (index) {
+                  // Opcional: actualizar el índice actual
+                },
+                loadingBuilder: (context, event) {
+                  return Center(
+                    child: SizedBox(
+                      width: 50,
+                      height: 50,
+                      child: CircularProgressIndicator(
+                        value: event == null
+                            ? 0
+                            : event.cumulativeBytesLoaded / event.expectedTotalBytes!,
+                        valueColor: const AlwaysStoppedAnimation<Color>(Colors.white),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              
+              // Botón de cerrar
+              Positioned(
+                top: MediaQuery.of(context).padding.top + 10,
+                right: 20,
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).pop(),
+                  child: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: const BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.close,
+                      color: Colors.white,
+                      size: 30,
+                    ),
+                  ),
+                ),
+              ),
+              
+              // Contador de imágenes
+              Positioned(
+                bottom: 30,
+                left: 0,
+                right: 0,
+                child: Center(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${initialIndex + 1} / ${images.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
 }

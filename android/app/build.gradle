@@ -52,8 +52,8 @@ android {
         applicationId = "tizara.dds.media"        
         minSdk = 26
         targetSdk = 36
-        versionCode = 14
-        versionName = "1.11.4"
+        versionCode = 15
+        versionName = "1.11.5"
     }
 
     signingConfigs {

@@ -104,7 +104,7 @@ void main() async {
 
   // inicializar notificaciones locales
   const InitializationSettings initializationSettings = InitializationSettings( 
-    android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+    android: AndroidInitializationSettings('@mipmap/launcher_icon'),
     iOS: DarwinInitializationSettings(),
   );
   await flutterLocalNotificationsPlugin.initialize(
